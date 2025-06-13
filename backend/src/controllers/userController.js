@@ -1,81 +1,51 @@
-// src/controllers/userController.js - Controlador de Usuario
-const User = require('../models/User');
+const User = require('../models/userModel');
+const Asignacion = require('../models/asignacionModel');
 const { successResponse, errorResponse } = require('../utils/response');
+const APIFeatures = require('../utils/apiFeatures');
 
 class UserController {
-  
-  // Obtener todos los usuarios
+  // Obtener todos los usuarios con paginación y filtros
   static async getAllUsers(req, res, next) {
     try {
-      const { 
-        pagina = 1, 
-        limite = 10, 
-        activo = 'true',
-        buscar = '',
-        ordenar = 'createdAt',
-        orden = 'desc'
-      } = req.query;
+      const features = new APIFeatures(User.find(), req.query)
+        .filter()
+        .sort()
+        .limitFields()
+        .paginate();
 
-      // Construir filtros
-      const filtros = {};
-      if (activo !== 'all') {
-        filtros.activo = activo === 'true';
-      }
-      
-      if (buscar) {
-        filtros.$or = [
-          { nombre: { $regex: buscar, $options: 'i' } },
-          { email: { $regex: buscar, $options: 'i' } }
-        ];
-      }
+      const users = await features.query;
+      const total = await User.countDocuments(features.filterQuery);
 
-      // Configurar paginación
-      const skip = (parseInt(pagina) - 1) * parseInt(limite);
-      const sortOrder = orden === 'desc' ? -1 : 1;
-
-      // Ejecutar consulta
-      const [usuarios, total] = await Promise.all([
-        User.find(filtros)
-          .sort({ [ordenar]: sortOrder })
-          .skip(skip)
-          .limit(parseInt(limite))
-          .lean(),
-        User.countDocuments(filtros)
-      ]);
-
-      // Información de paginación
-      const paginacion = {
-        paginaActual: parseInt(pagina),
-        totalPaginas: Math.ceil(total / parseInt(limite)),
-        totalUsuarios: total,
-        usuariosPorPagina: parseInt(limite),
-        tieneAnterior: parseInt(pagina) > 1,
-        tieneSiguiente: parseInt(pagina) < Math.ceil(total / parseInt(limite))
+      const pagination = {
+        pagina: features.pagina,
+        limite: features.limite,
+        totalPaginas: Math.ceil(total / features.limite),
+        totalUsuarios: total
       };
 
-      return successResponse(res, {
-        usuarios,
-        paginacion
-      }, 'Usuarios obtenidos exitosamente');
-
+      successResponse(res, { users, pagination }, 'Usuarios obtenidos con éxito');
     } catch (error) {
       next(error);
     }
   }
 
-  // Obtener usuario por ID
+  // Obtener usuario por ID con equipos asignados
   static async getUserById(req, res, next) {
     try {
-      const { id } = req.params;
-      
-      const usuario = await User.findById(id);
-      
-      if (!usuario) {
+      const user = await User.findById(req.params.id)
+        .populate({
+          path: 'equiposAsignados',
+          populate: {
+            path: 'equipo',
+            select: 'tipoEquipo marca modelo serial estado'
+          }
+        });
+
+      if (!user) {
         return errorResponse(res, 'Usuario no encontrado', 404);
       }
 
-      return successResponse(res, usuario, 'Usuario obtenido exitosamente');
-
+      successResponse(res, user, 'Usuario obtenido con éxito');
     } catch (error) {
       if (error.name === 'CastError') {
         return errorResponse(res, 'ID de usuario inválido', 400);
@@ -87,37 +57,29 @@ class UserController {
   // Crear nuevo usuario
   static async createUser(req, res, next) {
     try {
-      const { nombre, email, edad, telefono, direccion, preferencias } = req.body;
+      const { idUsuario, email } = req.body;
 
-      // Verificar si el email ya existe
-      const usuarioExistente = await User.buscarPorEmail(email);
-      if (usuarioExistente) {
+      // Verificar si ID o email ya existen
+      const [existingId, existingEmail] = await Promise.all([
+        User.findOne({ idUsuario }),
+        User.findOne({ email: email.toLowerCase() })
+      ]);
+
+      if (existingId) {
+        return errorResponse(res, 'El ID de usuario ya existe', 400);
+      }
+      if (existingEmail) {
         return errorResponse(res, 'El email ya está registrado', 400);
       }
 
-      // Crear nuevo usuario
-      const nuevoUsuario = new User({
-        nombre,
-        email,
-        edad,
-        telefono,
-        direccion,
-        preferencias
-      });
+      const newUser = await User.create(req.body);
+      newUser.password = undefined;
 
-      const usuarioGuardado = await nuevoUsuario.save();
-
-      return successResponse(
-        res, 
-        usuarioGuardado, 
-        'Usuario creado exitosamente', 
-        201
-      );
-
+      successResponse(res, newUser, 'Usuario creado con éxito', 201);
     } catch (error) {
       if (error.name === 'ValidationError') {
-        const errores = Object.values(error.errors).map(err => err.message);
-        return errorResponse(res, errores, 400);
+        const errors = Object.values(error.errors).map(el => el.message);
+        return errorResponse(res, errors, 400);
       }
       next(error);
     }
@@ -126,41 +88,24 @@ class UserController {
   // Actualizar usuario
   static async updateUser(req, res, next) {
     try {
-      const { id } = req.params;
-      const actualizaciones = req.body;
-
-      // Si se actualiza el email, verificar que no esté en uso
-      if (actualizaciones.email) {
-        const usuarioConEmail = await User.buscarPorEmail(actualizaciones.email);
-        if (usuarioConEmail && usuarioConEmail._id.toString() !== id) {
-          return errorResponse(res, 'El email ya está en uso por otro usuario', 400);
+      const user = await User.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        {
+          new: true,
+          runValidators: true
         }
-      }
+      ).select('-password');
 
-      const usuarioActualizado = await User.findByIdAndUpdate(
-        id,
-        actualizaciones,
-        { 
-          new: true, 
-          runValidators: true,
-          context: 'query'
-        }
-      );
-
-      if (!usuarioActualizado) {
+      if (!user) {
         return errorResponse(res, 'Usuario no encontrado', 404);
       }
 
-      return successResponse(
-        res, 
-        usuarioActualizado, 
-        'Usuario actualizado exitosamente'
-      );
-
+      successResponse(res, user, 'Usuario actualizado con éxito');
     } catch (error) {
       if (error.name === 'ValidationError') {
-        const errores = Object.values(error.errors).map(err => err.message);
-        return errorResponse(res, errores, 400);
+        const errors = Object.values(error.errors).map(el => el.message);
+        return errorResponse(res, errors, 400);
       }
       if (error.name === 'CastError') {
         return errorResponse(res, 'ID de usuario inválido', 400);
@@ -169,49 +114,31 @@ class UserController {
     }
   }
 
-  // Eliminar usuario (soft delete)
-  static async deleteUser(req, res, next) {
+  // Desactivar usuario (soft delete)
+  static async deactivateUser(req, res, next) {
     try {
-      const { id } = req.params;
-
-      const usuario = await User.findById(id);
-      if (!usuario) {
-        return errorResponse(res, 'Usuario no encontrado', 404);
-      }
-
-      await usuario.desactivar();
-
-      return successResponse(
-        res, 
-        null, 
-        'Usuario eliminado exitosamente'
-      );
-
-    } catch (error) {
-      if (error.name === 'CastError') {
-        return errorResponse(res, 'ID de usuario inválido', 400);
-      }
-      next(error);
-    }
-  }
-
-  // Eliminar usuario permanentemente
-  static async deleteUserPermanent(req, res, next) {
-    try {
-      const { id } = req.params;
-
-      const usuarioEliminado = await User.findByIdAndDelete(id);
+      const user = await User.findById(req.params.id);
       
-      if (!usuarioEliminado) {
+      if (!user) {
         return errorResponse(res, 'Usuario no encontrado', 404);
       }
 
-      return successResponse(
-        res, 
-        null, 
-        'Usuario eliminado permanentemente'
-      );
+      // Verificar si tiene equipos asignados
+      const asignacionesActivas = await Asignacion.countDocuments({
+        usuario: user._id,
+        activo: true
+      });
 
+      if (asignacionesActivas > 0) {
+        return errorResponse(
+          res, 
+          'No se puede desactivar usuario con equipos asignados', 
+          400
+        );
+      }
+
+      await user.desactivar();
+      successResponse(res, null, 'Usuario desactivado con éxito');
     } catch (error) {
       if (error.name === 'CastError') {
         return errorResponse(res, 'ID de usuario inválido', 400);
@@ -220,24 +147,15 @@ class UserController {
     }
   }
 
-  // Reactivar usuario
-  static async reactivateUser(req, res, next) {
+  // Obtener equipos asignados a un usuario
+  static async getUserEquipment(req, res, next) {
     try {
-      const { id } = req.params;
+      const asignaciones = await Asignacion.find({
+        usuario: req.params.id,
+        activo: true
+      }).populate('equipo', 'tipoEquipo marca modelo serial estado');
 
-      const usuario = await User.findById(id);
-      if (!usuario) {
-        return errorResponse(res, 'Usuario no encontrado', 404);
-      }
-
-      await usuario.activar();
-
-      return successResponse(
-        res, 
-        usuario, 
-        'Usuario reactivado exitosamente'
-      );
-
+      successResponse(res, asignaciones, 'Equipos asignados obtenidos con éxito');
     } catch (error) {
       if (error.name === 'CastError') {
         return errorResponse(res, 'ID de usuario inválido', 400);
@@ -249,35 +167,26 @@ class UserController {
   // Estadísticas de usuarios
   static async getUserStats(req, res, next) {
     try {
-      const [
-        totalUsuarios,
-        usuariosActivos,
-        usuariosInactivos,
-        usuariosAdultos,
-        usuariosMenores
-      ] = await Promise.all([
-        User.countDocuments(),
-        User.countDocuments({ activo: true }),
-        User.countDocuments({ activo: false }),
-        User.contarPorEdad(18, 120),
-        User.contarPorEdad(0, 17)
+      const stats = await User.aggregate([
+        {
+          $group: {
+            _id: '$cargo',
+            count: { $sum: 1 },
+            activos: { $sum: { $cond: [{ $eq: ['$activo', true] }, 1, 0] } }
+          }
+        },
+        {
+          $project: {
+            cargo: '$_id',
+            total: '$count',
+            activos: 1,
+            inactivos: { $subtract: ['$count', '$activos'] },
+            _id: 0
+          }
+        }
       ]);
 
-      const estadisticas = {
-        total: totalUsuarios,
-        activos: usuariosActivos,
-        inactivos: usuariosInactivos,
-        adultos: usuariosAdultos,
-        menores: usuariosMenores,
-        porcentajeActivos: totalUsuarios > 0 ? ((usuariosActivos / totalUsuarios) * 100).toFixed(2) : 0
-      };
-
-      return successResponse(
-        res, 
-        estadisticas, 
-        'Estadísticas obtenidas exitosamente'
-      );
-
+      successResponse(res, stats, 'Estadísticas obtenidas con éxito');
     } catch (error) {
       next(error);
     }

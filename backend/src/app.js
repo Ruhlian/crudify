@@ -6,6 +6,8 @@ const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 const app = express();
 
+require('dotenv').config();
+
 // Middleware básico
 app.use(cors({
   origin: process.env.FRONTEND_URL || '*',

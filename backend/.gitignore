@@ -1,0 +1,36 @@
+# Ignorar la carpeta node_modules
+node_modules/
+
+# Archivos de entorno
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Directorios de producción
+dist/
+build/
+
+# Archivos del sistema (Windows/macOS)
+.DS_Store
+Thumbs.db
+
+# Salidas de tests o cobertura
+coverage/
+
+# Archivos de VSCode (si usas ese editor)
+.vscode/
+
+# Carpeta temporal de Next.js
+.next/
+
+# Archivos generados por Parcel
+.cache/
+
+# Archivos de configuración de lock de dependencias
+package-lock.json

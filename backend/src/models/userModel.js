@@ -1,13 +1,18 @@
-// src/models/User.js - Modelo de Usuario
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
+  idUsuario: {
+    type: String,
+    required: [true, 'El ID de usuario es obligatorio'],
+    unique: true,
+    trim: true
+  },
   nombre: {
     type: String,
     required: [true, 'El nombre es obligatorio'],
     trim: true,
-    minlength: [2, 'El nombre debe tener al menos 2 caracteres'],
-    maxlength: [50, 'El nombre no puede exceder 50 caracteres']
+    maxlength: [100, 'El nombre no puede exceder los 100 caracteres']
   },
   email: {
     type: String,
@@ -15,135 +20,83 @@ const userSchema = new mongoose.Schema({
     unique: true,
     trim: true,
     lowercase: true,
-    match: [
-      /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-      'Por favor ingresa un email válido'
-    ]
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Email inválido']
   },
-  edad: {
-    type: Number,
-    min: [0, 'La edad no puede ser negativa'],
-    max: [120, 'La edad no puede ser mayor a 120 años'],
-    validate: {
-      validator: Number.isInteger,
-      message: 'La edad debe ser un número entero'
-    }
-  },
-  telefono: {
+  password: {
     type: String,
-    trim: true,
-    validate: {
-      validator: function(v) {
-        return !v || /^[\+]?[1-9][\d]{0,15}$/.test(v.replace(/[\s\-\(\)]/g, ''));
-      },
-      message: 'Por favor ingresa un número de teléfono válido'
+    select: false,
+    minlength: [8, 'La contraseña debe tener al menos 8 caracteres']
+  },
+  cargo: {
+    type: String,
+    required: [true, 'El cargo es obligatorio'],
+    enum: {
+      values: ['Empleado', 'Supervisor', 'Gerente', 'Administrador'],
+      message: 'Cargo no válido'
     }
+  },
+  sede: {
+    type: String,
+    required: [true, 'La sede es obligatoria']
+  },
+  direccion: {
+    type: String,
+    required: [true, 'La dirección es obligatoria']
+  },
+  gerencia: {
+    type: String,
+    required: [true, 'La gerencia es obligatoria']
   },
   activo: {
     type: Boolean,
     default: true
   },
-  avatar: {
+  rol: {
     type: String,
-    default: null
+    enum: ['user', 'admin', 'tecnico'],
+    default: 'user'
   },
-  direccion: {
-    calle: String,
-    ciudad: String,
-    codigoPostal: String,
-    pais: {
-      type: String,
-      default: 'Colombia'
-    }
+  fechaCreacion: {
+    type: Date,
+    default: Date.now
   },
-  preferencias: {
-    tema: {
-      type: String,
-      enum: ['claro', 'oscuro', 'auto'],
-      default: 'auto'
-    },
-    idioma: {
-      type: String,
-      enum: ['es', 'en', 'fr'],
-      default: 'es'
-    },
-    notificaciones: {
-      email: { type: Boolean, default: true },
-      sms: { type: Boolean, default: false },
-      push: { type: Boolean, default: true }
-    }
-  }
+  ultimoAcceso: Date
 }, {
-  timestamps: true,
-  versionKey: false
+  versionKey: false,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Índices para mejorar performance
-userSchema.index({ email: 1 });
-userSchema.index({ activo: 1 });
-userSchema.index({ createdAt: -1 });
+// Virtual para obtener equipos asignados
+userSchema.virtual('equiposAsignados', {
+  ref: 'Asignacion',
+  localField: '_id',
+  foreignField: 'usuario',
+  justOne: false,
+  match: { activo: true }
+});
 
-// Middleware pre-save
-userSchema.pre('save', function(next) {
-  // Capitalizar nombre
-  if (this.isModified('nombre')) {
-    this.nombre = this.nombre
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  }
+// Middleware para hash de contraseña
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
-// Métodos virtuales
-userSchema.virtual('nombreCompleto').get(function() {
-  return this.nombre;
-});
-
-userSchema.virtual('esAdulto').get(function() {
-  return this.edad && this.edad >= 18;
-});
-
-// Método para formato JSON personalizado
-userSchema.methods.toJSON = function() {
-  const userObject = this.toObject();
-  
-  // Remover campos sensibles en respuestas
-  delete userObject.__v;
-  
-  return userObject;
+// Método para comparar contraseñas
+userSchema.methods.compararPassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Métodos estáticos
-userSchema.statics.findActivos = function() {
-  return this.find({ activo: true });
-};
-
-userSchema.statics.buscarPorEmail = function(email) {
-  return this.findOne({ email: email.toLowerCase() });
-};
-
-userSchema.statics.contarPorEdad = function(edadMin, edadMax) {
-  return this.countDocuments({
-    edad: { $gte: edadMin, $lte: edadMax },
-    activo: true
-  });
-};
-
-// Métodos de instancia
+// Método para desactivar usuario
 userSchema.methods.desactivar = function() {
   this.activo = false;
   return this.save();
 };
 
-userSchema.methods.activar = function() {
-  this.activo = true;
-  return this.save();
-};
-
-userSchema.methods.actualizarUltimaActividad = function() {
-  this.updatedAt = new Date();
-  return this.save();
+// Query helper para usuarios activos
+userSchema.query.activos = function() {
+  return this.where({ activo: true });
 };
 
 const User = mongoose.model('User', userSchema);
