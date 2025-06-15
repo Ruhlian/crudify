@@ -1,0 +1,39 @@
+.tabla-wrapper {
+  margin: 20px auto;
+  width: 95%;
+  overflow-x: auto;
+}
+
+.tabla-wrapper button {
+  margin-bottom: 15px;
+  background-color: #14a2c9;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.tabla-wrapper button:hover {
+  background-color: #0f88ac;
+}
+
+.tabla-asignaciones {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabla-asignaciones th,
+.tabla-asignaciones td {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  text-align: left;
+  font-size: 14px;
+}
+
+.tabla-asignaciones th {
+  background-color: #e8f7fb;
+  font-weight: bold;
+  color: #0e6ea8;
+}

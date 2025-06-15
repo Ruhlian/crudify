@@ -1,0 +1,149 @@
+/* styles/Dashboard.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  background-color: #f4f7fa;
+}
+
+.dashboard-container {
+  max-width: 1300px;
+  margin: auto;
+  padding: 20px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  background: #fff;
+  padding: 15px 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.titulo {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 10px 0;
+}
+
+.logout-button {
+  background-color: #e74c3c;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s;
+}
+
+.logout-button:hover {
+  background-color: #c0392b;
+}
+
+.busqueda-area input {
+  padding: 10px;
+  font-size: 14px;
+  width: 250px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.barra-opciones {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.barra-opciones button {
+  background-color: #3498db;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.barra-opciones button:hover {
+  background-color: #2980b9;
+}
+
+/* Tabla de asignaciones */
+
+.tabla-asignaciones {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 40px;
+}
+
+.tabla-asignaciones th,
+.tabla-asignaciones td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #eaeaea;
+  text-align: left;
+  font-size: 14px;
+}
+
+.tabla-asignaciones th {
+  background-color: #ecf0f1;
+  font-weight: 600;
+  color: #333;
+}
+
+.tabla-asignaciones td button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  margin: 0 4px;
+}
+
+.tabla-asignaciones tr:hover {
+  background-color: #f9f9f9;
+}
+.filtros-extra {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+
+.filtros-extra select,
+.filtros-extra input {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  min-width: 200px;
+}
+/* Fix tamaño y apariencia de filtros de sede y cargo */
+.filtros-extra select,
+.filtros-extra input {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.filtros-extra {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}

@@ -1,0 +1,45 @@
+.tabla-equipos-container {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.tabla-equipos {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabla-equipos th,
+.tabla-equipos td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.tabla-equipos th {
+  background-color: #14A2C9;
+  color: white;
+  font-weight: bold;
+}
+
+.btn-editar,
+.btn-eliminar {
+  margin: 0 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-editar {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.btn-eliminar {
+  background-color: #dc3545;
+  color: #fff;
+}
