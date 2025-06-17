@@ -1,7 +1,7 @@
 const User = require('../models/userModel');
 const Asignacion = require('../models/asignacionModel');
 const { successResponse, errorResponse } = require('../utils/response');
-const APIFeatures = require('../utils/apiFeatures');
+const APIFeatures = require('../utils/APIFeatures');
 
 class UserController {
   // Obtener todos los usuarios con paginación y filtros

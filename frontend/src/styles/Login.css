@@ -1,0 +1,51 @@
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: #f2f9ff;
+}
+
+.login-form {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0px 0px 20px rgba(0,0,0,0.1);
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.login-form h2 {
+  text-align: center;
+  margin-bottom: 1rem;
+  color: #14A2C9;
+}
+
+.login-form input {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.btn-login,
+.btn-invitado {
+  background-color: #14A2C9;
+  color: white;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-invitado {
+  background-color: #5a5a5a;
+}
+
+.divider {
+  text-align: center;
+  font-size: 14px;
+  color: #888;
+}

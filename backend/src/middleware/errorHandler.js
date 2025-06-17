@@ -1,112 +1,105 @@
-// src/middleware/errorHandler.js - Manejo de errores
 const { errorResponse } = require('../utils/response');
 
-// Middleware para rutas no encontradas
-const notFound = (req, res, next) => {
-  const error = new Error(`Ruta no encontrada: ${req.originalUrl}`);
-  error.statusCode = 404;
-  next(error);
+const handleCastErrorDB = (err) => {
+  const message = `Recurso no encontrado con id: ${err.value}`;
+  return { message, statusCode: 400 };
 };
 
-// Middleware principal de manejo de errores
-const errorHandler = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
-  error.statusCode = err.statusCode || 500;
+const handleDuplicateFieldsDB = (err) => {
+  const value = err.errmsg ? err.errmsg.match(/(["'])(\\?.)*?\1/)[0] : 'valor duplicado';
+  const message = `Campo duplicado: ${value}. Por favor usa otro valor`;
+  return { message, statusCode: 400 };
+};
 
-  // Log del error en desarrollo
+const handleValidationErrorDB = (err) => {
+  const errors = Object.values(err.errors).map(el => el.message);
+  const message = `Datos inválidos: ${errors.join('. ')}`;
+  return { message, statusCode: 400 };
+};
+
+const handleJWTError = () => {
+  return { 
+    message: 'Token inválido. Por favor inicia sesión nuevamente', 
+    statusCode: 401 
+  };
+};
+
+const handleJWTExpiredError = () => {
+  return { 
+    message: 'Tu token ha expirado. Por favor inicia sesión nuevamente', 
+    statusCode: 401 
+  };
+};
+
+const sendErrorDev = (err, res) => {
+  res.status(err.statusCode).json({
+    success: false,
+    status: err.status,
+    error: err,
+    message: err.message,
+    stack: err.stack
+  });
+};
+
+const sendErrorProd = (err, res) => {
+  // Errores operacionales: enviar mensaje al cliente
+  if (err.isOperational) {
+    errorResponse(res, err.message, err.statusCode);
+  } else {
+    // Error de programación: no revelar detalles al cliente
+    console.error('ERROR 💥', err);
+    errorResponse(res, 'Algo salió mal en el servidor', 500);
+  }
+};
+
+const globalErrorHandler = (err, req, res, next) => {
+  err.statusCode = err.statusCode || 500;
+  err.status = err.status || 'error';
+
   if (process.env.NODE_ENV === 'development') {
-    console.error('🚨 Error:', err);
-    console.error('📍 Stack:', err.stack);
-  }
+    sendErrorDev(err, res);
+  } else {
+    let error = { ...err };
+    error.message = err.message;
 
-  // Error de ID inválido de MongoDB
-  if (err.name === 'CastError') {
-    const message = 'Recurso no encontrado';
-    error.statusCode = 404;
-    error.message = message;
-  }
+    // Errores específicos de MongoDB
+    if (error.name === 'CastError') {
+      const errorData = handleCastErrorDB(error);
+      error.message = errorData.message;
+      error.statusCode = errorData.statusCode;
+      error.isOperational = true;
+    }
 
-  // Error de duplicado de MongoDB
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyValue)[0];
-    const value = err.keyValue[field];
-    const message = `El ${field} '${value}' ya existe`;
-    error.statusCode = 400;
-    error.message = message;
-  }
+    if (error.code === 11000) {
+      const errorData = handleDuplicateFieldsDB(error);
+      error.message = errorData.message;
+      error.statusCode = errorData.statusCode;
+      error.isOperational = true;
+    }
 
-  // Error de validación de MongoDB
-  if (err.name === 'ValidationError') {
-    const messages = Object.values(err.errors).map(val => val.message);
-    error.statusCode = 400;
-    error.message = messages;
-  }
+    if (error.name === 'ValidationError') {
+      const errorData = handleValidationErrorDB(error);
+      error.message = errorData.message;
+      error.statusCode = errorData.statusCode;
+      error.isOperational = true;
+    }
 
-  // Error de JWT
-  if (err.name === 'JsonWebTokenError') {
-    const message = 'Token inválido';
-    error.statusCode = 401;
-    error.message = message;
-  }
+    if (error.name === 'JsonWebTokenError') {
+      const errorData = handleJWTError();
+      error.message = errorData.message;
+      error.statusCode = errorData.statusCode;
+      error.isOperational = true;
+    }
 
-  // Error de JWT expirado
-  if (err.name === 'TokenExpiredError') {
-    const message = 'Token expirado';
-    error.statusCode = 401;
-    error.message = message;
-  }
+    if (error.name === 'TokenExpiredError') {
+      const errorData = handleJWTExpiredError();
+      error.message = errorData.message;
+      error.statusCode = errorData.statusCode;
+      error.isOperational = true;
+    }
 
-  // Error de conexión a base de datos
-  if (err.name === 'MongoError' || err.name === 'MongooseError') {
-    const message = 'Error de base de datos';
-    error.statusCode = 500;
-    error.message = message;
+    sendErrorProd(error, res);
   }
-
-  // Error de timeout
-  if (err.code === 'ECONNABORTED') {
-    const message = 'Tiempo de espera agotado';
-    error.statusCode = 408;
-    error.message = message;
-  }
-
-  // Error de límite de tamaño
-  if (err.type === 'entity.too.large') {
-    const message = 'Archivo demasiado grande';
-    error.statusCode = 413;
-    error.message = message;
-  }
-
-  // Respuesta de error usando helper
-  return errorResponse(
-    res, 
-    error.message, 
-    error.statusCode,
-    process.env.NODE_ENV === 'development' ? err.stack : undefined
-  );
 };
 
-// Manejo de errores asincrónicos
-const asyncHandler = (fn) => (req, res, next) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
-};
-
-// Manejo de promesas no capturadas
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
-  // Cerrar servidor gracefully
-  process.exit(1);
-});
-
-// Manejo de excepciones no capturadas
-process.on('uncaughtException', (err) => {
-  console.error('🚨 Uncaught Exception:', err);
-  process.exit(1);
-});
-
-module.exports = {
-  notFound,
-  errorHandler,
-  asyncHandler
-};
+module.exports = globalErrorHandler;
