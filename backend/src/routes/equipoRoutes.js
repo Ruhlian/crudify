@@ -1,15 +1,32 @@
 const express = require('express');
 const EquipoController = require('../controllers/equipoController');
+const { protect } = require('../middleware/auth'); // Si tienes autenticación
+
 const router = express.Router();
 
-// Rutas para equipos
-router.get('/', EquipoController.getAll);
-router.get('/:id', EquipoController.getById);
-router.post('/', EquipoController.create);
-router.put('/:id', EquipoController.update);
+// 🔍 Rutas de búsqueda (ANTES de las rutas con parámetros)
+router.get('/search', EquipoController.search);
 
-// Rutas específicas para estados
+// 🔄 Ruta para migrar equipos sin idEquipo (solo para desarrollo/admin)
+router.post('/migrar-ids', EquipoController.migrarIdEquipos);
+
+// 📊 Rutas principales
+router.route('/')
+  .get(EquipoController.getAll)
+  .post(EquipoController.create);
+
+// 🏷️ Buscar por serial específico
+router.get('/serial/:serial', EquipoController.getBySerial);
+
+// 📈 Equipos por estado
 router.get('/estado/:estado', EquipoController.getEquiposPorEstado);
-router.get('/:id/historial', EquipoController.getHistorialAsignaciones);
+
+// 📋 Rutas con parámetro ID (al final para evitar conflictos)
+router.route('/:id')
+  .get(EquipoController.getById)
+  .put(EquipoController.update);
+
+// 📚 Historial de asignaciones
+router.get('/:equipoId/historial', EquipoController.getHistorialAsignaciones);
 
 module.exports = router;
